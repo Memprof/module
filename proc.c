@@ -237,7 +237,7 @@ static void *memprof_perf_next(struct seq_file *p, void *v, loff_t *pos) {
 }
 
 static void memprof_perf_stop(struct seq_file *p, void *v) {
-   struct memprof_seq_inter *iter = (struct memprof_seq_inter *)v;
+   struct memprof_perf_iter *iter = (struct memprof_perf_iter *)v;
    if (iter)
       kfree(iter);
 }
@@ -279,25 +279,38 @@ const struct file_operations memprof_perf_data_fops = {
  * /proc/memprof_ibs
  */
 struct memprof_seq_inter {
+   uint64_t i;
+   uint64_t max_i;
+   size_t *pos;
    int cpu;
    int e;
-   int cpu_count;
-   int e_count;
 };
+static struct memprof_seq_inter *iter;
+
+static void reset_iter(void) {
+   if(!iter)
+      return;
+
+   printk("Reseting iterator; done %lu/%lu\n", (long unsigned)iter->i, (long unsigned)iter->max_i);
+
+   kfree(iter->pos);
+   kfree(iter);
+   iter = NULL;
+}
 
 static int memprof_seq_raw_show(struct seq_file *m, void *v)
 {
-   struct memprof_seq_inter *iter = (struct memprof_seq_inter *)v;
    struct sample_buffer *b;
    struct s *s;
 
-   if (!iter) {
+   if (!iter) 
       return 0;
-   }
 
-   if(iter->cpu == 0 && iter->e == 1) {
+   //printk("%lu / %lu\n", (long unsigned)iter->i, (long unsigned)iter->max_i);
+
+   if(iter->i == 1) {
       int r, j;
-      struct i i = { .max_nodes = num_possible_nodes(), .sampling_rate = max_cnt_op };
+      struct i i = { .max_nodes = num_possible_nodes(), .sampling_rate = max_cnt_op, .sorted_by_rdt = 1 };
       struct h h = {
          .version = S_VERSION,
       };
@@ -306,8 +319,8 @@ static int memprof_seq_raw_show(struct seq_file *m, void *v)
          printk("Error writing first header\n");
 
       strncpy(i.hostname, current->nsproxy->uts_ns->name.nodename, sizeof(i.hostname));
-      i.node_begin = kmalloc(sizeof(*i.node_begin)*num_possible_nodes(), GFP_KERNEL);
-      i.node_end = kmalloc(sizeof(*i.node_end)*num_possible_nodes(), GFP_KERNEL);
+      i.node_begin = kmalloc(sizeof(*i.node_begin)*i.max_nodes, GFP_KERNEL);
+      i.node_end = kmalloc(sizeof(*i.node_end)*i.max_nodes, GFP_KERNEL);
       for(j = 0; j < num_possible_nodes(); j++) {
          if(!NODE_DATA(j))
             continue;
@@ -315,6 +328,12 @@ static int memprof_seq_raw_show(struct seq_file *m, void *v)
          i.node_end[j] =  node_end_pfn(j);
       }
       r = seq_write(m, &i, sizeof(i));
+      if(r)
+         printk("Error writing second header\n");
+      r = seq_write(m, i.node_begin, sizeof(*i.node_begin)*i.max_nodes);
+      if(r)
+         printk("Error writing second header\n");
+      r = seq_write(m, i.node_end, sizeof(*i.node_end)*i.max_nodes);
       if(r)
          printk("Error writing second header\n");
       kfree(i.node_begin);
@@ -326,66 +345,77 @@ static int memprof_seq_raw_show(struct seq_file *m, void *v)
    return (seq_write(m, s, sizeof(*s)) == 0)?0:-1;
 }
 
-static inline int iter_valid(struct memprof_seq_inter *iter) {
-   if (iter->cpu < iter->cpu_count && iter->e < iter->e_count)
-      return 1;
-   else
-      return 0;
-}
+static int iter_step(struct memprof_seq_inter *iter, int steps) {
+   int i, j;
+   uint64_t min, _min;
+   int min_cpu;
+   int ncpus = num_possible_cpus();
 
-static inline int iter_step(struct memprof_seq_inter *iter) {
-   do {
-      iter->e++;
-      if (iter->e >= iter->e_count) {
-         iter->e = 0;
-         iter->cpu++;
-         if (iter->cpu >= num_possible_cpus())
-            return 0;
-         iter->e_count = per_cpu(sample_buffers, iter->cpu)->count;
+   for(i = 0; i < steps; i++) {
+      iter->i++;
+      if(iter->i >= iter->max_i)
+         return 1;
+
+      rdtscll(min);
+      min_cpu = -1;
+      for(j  = 0; j < ncpus; j++) {
+         if(iter->pos[j] >= per_cpu(sample_buffers, j)->count)
+            continue;
+
+         _min = per_cpu(sample_buffers, j)->samples[iter->pos[j]].rdt;
+         if(_min < min) {
+            min = _min;
+            min_cpu = j;
+         }
       }
-   } while (!iter_valid(iter));
-   return 1;
-}
 
-static inline int pos_to_iter(loff_t pos, struct memprof_seq_inter *iter) {
-   iter->cpu = 0;
-   iter->cpu_count = num_possible_cpus();
-   iter->e = 0;
-   iter->e_count = per_cpu(sample_buffers, iter->cpu)->count;
+      if(min_cpu == -1)
+         return 1;
 
-   while (true) {
-      if (iter->e_count <= pos) {
-         pos -= iter->e_count;
-         iter->cpu++;
-         iter->e = 0;
-         iter->e_count = per_cpu(sample_buffers, iter->cpu)->count;
-      } else {
-         iter->e = pos;
-         return iter_valid(iter);
-      }
+      iter->cpu = min_cpu;
+      iter->e = iter->pos[min_cpu];
+      iter->pos[min_cpu]++;
    }
+   return 0;
 }
 
 static void *memprof_seq_start(struct seq_file *p, loff_t *pos) {
-   struct memprof_seq_inter *iter = kmalloc(sizeof(struct memprof_seq_inter), GFP_KERNEL);
-   if (!iter)
-      return ERR_PTR(-ENOMEM);
+   if(*pos == 0) {
+      int cpu;
+      long unsigned count = 0;
 
-   if (!pos_to_iter(*pos, iter) || !iter_step(iter)) {
-      kfree(iter);
-      iter = NULL;
+      iter = kmalloc(sizeof(struct memprof_seq_inter), GFP_KERNEL);
+      if (!iter)
+         return ERR_PTR(-ENOMEM);
+
+      iter->i = 0;
+      iter->pos = kzalloc(num_possible_cpus() * sizeof(*iter->pos), GFP_KERNEL);
+      if (!iter->pos)
+         return ERR_PTR(-ENOMEM);
+
+      for_each_online_cpu(cpu) {
+         struct sample_buffer *sb = per_cpu(sample_buffers, cpu);
+         if(sb)
+            count += sb->count;
+         else
+            printk("No buffer allocated on CPU %d?\n", cpu);
+      }
+      iter->max_i = count;
+      printk("Preparing to dump %lu samples!\n", count);
    }
 
+   if(iter && iter_step(iter, 1)) 
+      reset_iter();
+
+   if (iter)
+      (*pos)++;
+      
    return iter;
 }
 
 static void *memprof_seq_next(struct seq_file *p, void *v, loff_t *pos) {
-   struct memprof_seq_inter *iter = (struct memprof_seq_inter *)v;
-
-   if (!iter_step(iter)) {
-      kfree(iter);
-      iter = NULL;
-   }
+   if (iter && iter_step(iter, 1)) 
+      reset_iter();
 
    if (iter)
       (*pos)++;
@@ -394,9 +424,7 @@ static void *memprof_seq_next(struct seq_file *p, void *v, loff_t *pos) {
 }
 
 static void memprof_seq_stop(struct seq_file *p, void *v) {
-   struct memprof_seq_inter *iter = (struct memprof_seq_inter *)v;
-   if (iter)
-      kfree(iter);
+   //reset_iter();
 }
 
 static int memprof_data_release(struct inode *inode, struct file *file) {
@@ -426,12 +454,4 @@ const struct file_operations memprof_raw_data_fops = {
    .llseek         = seq_lseek,
    .release        = memprof_data_release,
 };
-
-
-
-
-
-
-
-
 
