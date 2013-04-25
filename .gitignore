@@ -1,0 +1,8 @@
+*.o
+*.cmd
+hooks.h
+.tmp_versions/
+Module.symvers
+memprof.ko
+memprof.mod.c
+modules.order
