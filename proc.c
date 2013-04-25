@@ -54,14 +54,13 @@ static ssize_t memprof_proc_write(struct file *file, const char __user *buf,
       if (get_user(c, buf))
          return -EFAULT;
       if (c == 'b' && !running) {
-         memprof_nmi_start();
          running = 1;
-      } else if(c == 'p') {
          set_hooks();
+         memprof_nmi_start();
       } else if (c == 'e' && running) {
          memprof_nmi_stop();
-         running = 0;
          clear_hooks();
+         running = 0;
       }
    }
    return count;

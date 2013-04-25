@@ -40,6 +40,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "hijack.h"
 #include "hooks.h"
 #include "perf.h"
+#include "console.h"
 
 DEFINE_PER_CPU(struct mmap_buffer*, mmap_buffers);
 DEFINE_PER_CPU(struct task_buffer*, task_buffers);
