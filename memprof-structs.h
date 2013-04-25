@@ -32,8 +32,10 @@ struct h {  // header
 struct i { // machine specific information
    int       sorted_by_rdt;
    char      hostname[32];
-   int       max_nodes;
    int       sampling_rate;
+   int       max_cpu;
+   int      *cpu_to_node;
+   int       max_nodes;
    uint64_t *node_begin;
    uint64_t *node_end;
 };

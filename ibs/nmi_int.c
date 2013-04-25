@@ -5,7 +5,7 @@
  *
  * @author John Levon <levon@movementarian.org>
  * @author Robert Richter <robert.richter@amd.com>
- * @author Baptiste Lepers <baptiste.lepers@gmail.com>
+ * @hacks  Baptiste Lepers <baptiste.lepers@gmail.com>
  */
 
 #include <linux/init.h>
@@ -187,48 +187,6 @@ void apic_clear_ibs_nmi_per_cpu(void *arg)
 
 int pfm_amd64_setup_eilvt(void)
 {
-/*
-#define IBSCTL_LVTOFFSETVAL		(1 << 8)
-#define IBSCTL				0x1cc
-   struct pci_dev *cpu_cfg;
-   int nodes;
-   u32 value = 0;
-*/
-   /* per CPU setup */
    on_each_cpu(apic_init_ibs_nmi_per_cpu, NULL, 1);
-/*
-   nodes = 0;
-   cpu_cfg = NULL;
-   do {
-      cpu_cfg = pci_get_device(PCI_VENDOR_ID_AMD,
-            PCI_DEVICE_ID_AMD_10H_NB_MISC,
-            cpu_cfg);
-      if (!cpu_cfg)
-         break;
-      ++nodes;
-      pci_write_config_dword(cpu_cfg, IBSCTL, ibs_eilvt_off
-            | IBSCTL_LVTOFFSETVAL);
-      pci_read_config_dword(cpu_cfg, IBSCTL, &value);
-      if (value != (ibs_eilvt_off | IBSCTL_LVTOFFSETVAL)) {
-         printk(KERN_DEBUG "Failed to setup IBS LVT offset, "
-               "IBSCTL = 0x%08x\n", value);
-         return 1;
-      }
-   } while (1);
-
-   if (!nodes) {
-      printk(KERN_DEBUG "No CPU node configured for IBS\n");
-      return 1;
-   }
-
-#ifdef CONFIG_NUMA
-   if (nodes != num_possible_nodes()) {
-      printk(KERN_DEBUG "Failed to setup CPU node(s) for IBS, "
-            "found: %d, expected %d\n",
-            nodes, num_possible_nodes());
-      return 1;
-   }
-#endif
-*/
    return 0;
 }

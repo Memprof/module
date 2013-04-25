@@ -13,6 +13,11 @@
 #ifndef IBS_H
 #define IBS_H
 
+#define IBS_INCLUDE_INVALID      0x1
+#define IBS_INCLUDE_L3           0x2
+#define IBS_INCLUDE_REMOTE_CACHE 0x4
+#define IBS_INCLUDE_DRAM         0x8
+
 /**
  * The following defines are bit masks that are used to select
  * IBS fetch event flags and values at the MSR level.

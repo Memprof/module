@@ -313,7 +313,7 @@ static int memprof_seq_raw_show(struct seq_file *m, void *v)
 
    if(iter->i == 1) {
       int r, j;
-      struct i i = { .max_nodes = num_possible_nodes(), .sampling_rate = max_cnt_op, .sorted_by_rdt = 1 };
+      struct i i = { .max_nodes = num_possible_nodes(), .sampling_rate = max_cnt_op, .sorted_by_rdt = 1, .max_cpu = num_possible_cpus() };
       struct h h = {
          .version = S_VERSION,
       };
@@ -322,14 +322,21 @@ static int memprof_seq_raw_show(struct seq_file *m, void *v)
          printk("Error writing first header\n");
 
       strncpy(i.hostname, current->nsproxy->uts_ns->name.nodename, sizeof(i.hostname));
+
+      i.cpu_to_node = kmalloc(sizeof(*i.cpu_to_node)*i.max_cpu, GFP_KERNEL);
+      for(j = 0; j < i.max_cpu; j++) {
+         i.cpu_to_node[j] = cpu_to_node(j);
+      }
+
       i.node_begin = kmalloc(sizeof(*i.node_begin)*i.max_nodes, GFP_KERNEL);
       i.node_end = kmalloc(sizeof(*i.node_end)*i.max_nodes, GFP_KERNEL);
-      for(j = 0; j < num_possible_nodes(); j++) {
+      for(j = 0; j < i.max_nodes; j++) {
          if(!NODE_DATA(j))
             continue;
          i.node_begin[j] = node_start_pfn(j);
          i.node_end[j] =  node_end_pfn(j);
       }
+
       r = seq_write(m, &i, sizeof(i));
       if(r)
          printu("Error writing second header\n");
@@ -339,8 +346,12 @@ static int memprof_seq_raw_show(struct seq_file *m, void *v)
       r = seq_write(m, i.node_end, sizeof(*i.node_end)*i.max_nodes);
       if(r)
          printu("Error writing second header\n");
+      r = seq_write(m, i.cpu_to_node, sizeof(*i.cpu_to_node)*i.max_cpu);
+      if(r)
+         printu("Error writing second header\n");
       kfree(i.node_begin);
       kfree(i.node_end);
+      kfree(i.cpu_to_node);
    }
 
    b = per_cpu(sample_buffers, iter->cpu);

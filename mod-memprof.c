@@ -47,7 +47,14 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "mod-memprof.h"
 #include "perf.h"
 
-int max_cnt_op = 0xFFF0;
+int max_cnt_op = 0xFFF0;               // sampling rate
+int ibs_filter = IBS_INCLUDE_L3 
+               | IBS_INCLUDE_REMOTE_CACHE 
+               | IBS_INCLUDE_DRAM;
+               //| IBS_INCLUDE_INVALID;  // Invalid = not touching memory or local L1 & L2 (majority of samples)
+int ibs_remove_invalid_phys = 1;       // Remove samples not touching memory
+
+
 DEFINE_PER_CPU(struct sample_buffer *, sample_buffers);
 
 extern const struct file_operations memprof_perf_data_fops;
@@ -80,7 +87,19 @@ static int nmi_handler(struct pt_regs * const regs)
 
    rdmsr(MSR_AMD64_IBSOPCTL, low, high);
    if (low & IBS_OP_LOW_VALID_BIT) {
-      ibs_op = &sb->samples[sb->count++];
+      ibs_op = &sb->samples[sb->count];
+
+      rdmsr(MSR_AMD64_IBSOPDATA2, low, high);
+      ibs_op->ibs_op_data2_low = low;
+      if(!(ibs_filter & (1 << (ibs_op->ibs_op_data2_low & 3))))
+         goto end;
+
+      rdmsr(MSR_AMD64_IBSDCPHYSAD, low, high);
+      ibs_op->ibs_dc_phys = (((long long)high) << 32LL) + low;
+      if(ibs_remove_invalid_phys && ibs_op->ibs_dc_phys == 0)
+         goto end;
+
+      sb->count++;
 
       rdtscll(ibs_op->rdt);
       ibs_op->cpu = cpu;
@@ -90,15 +109,11 @@ static int nmi_handler(struct pt_regs * const regs)
       rdmsr(MSR_AMD64_IBSOPDATA, low, high);
       ibs_op->ibs_op_data1_low = low;
       ibs_op->ibs_op_data1_high = high;
-      rdmsr(MSR_AMD64_IBSOPDATA2, low, high);
-      ibs_op->ibs_op_data2_low = low;
       rdmsr(MSR_AMD64_IBSOPDATA3, low, high);
       ibs_op->ibs_op_data3_low = low;
       ibs_op->ibs_op_data3_high = high;
       rdmsr(MSR_AMD64_IBSDCLINAD, low, high);
       ibs_op->ibs_dc_linear = (((long long)high) << 32LL) + low;
-      rdmsr(MSR_AMD64_IBSDCPHYSAD, low, high);
-      ibs_op->ibs_dc_phys = (((long long)high) << 32LL) + low;
       
 		ibs_op->tid = current->pid;
 		ibs_op->pid = current->tgid;
@@ -119,7 +134,6 @@ end:
 
 exit:
    return 1; // report success
-   goto end; // abuse gcc
 }
 
 static void memprof_start(void) {
