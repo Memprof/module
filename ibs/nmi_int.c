@@ -187,15 +187,16 @@ void apic_clear_ibs_nmi_per_cpu(void *arg)
 
 int pfm_amd64_setup_eilvt(void)
 {
+/*
 #define IBSCTL_LVTOFFSETVAL		(1 << 8)
 #define IBSCTL				0x1cc
    struct pci_dev *cpu_cfg;
    int nodes;
    u32 value = 0;
-
+*/
    /* per CPU setup */
    on_each_cpu(apic_init_ibs_nmi_per_cpu, NULL, 1);
-
+/*
    nodes = 0;
    cpu_cfg = NULL;
    do {
@@ -221,8 +222,6 @@ int pfm_amd64_setup_eilvt(void)
    }
 
 #ifdef CONFIG_NUMA
-   /* Sanity check */
-   /* Works only for 64bit with proper numa implementation. */
    if (nodes != num_possible_nodes()) {
       printk(KERN_DEBUG "Failed to setup CPU node(s) for IBS, "
             "found: %d, expected %d\n",
@@ -230,5 +229,6 @@ int pfm_amd64_setup_eilvt(void)
       return 1;
    }
 #endif
+*/
    return 0;
 }

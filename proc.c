@@ -27,6 +27,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include <linux/seq_file.h>
 #include <linux/proc_fs.h>
 #include <linux/sched.h>
+#include <linux/tty.h>
 #include <linux/random.h>
 #include <linux/utsname.h>
 #include <linux/uaccess.h>
@@ -38,6 +39,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "ibs/nmi_int.h"
 #include "memprof-structs.h"
 #include "mod-memprof.h"
+#include "console.h"
 #include "perf.h"
 
 /*
@@ -291,7 +293,7 @@ static void reset_iter(void) {
    if(!iter)
       return;
 
-   printk("Reseting iterator; done %lu/%lu\n", (long unsigned)iter->i, (long unsigned)iter->max_i);
+   printu("\n");
 
    kfree(iter->pos);
    kfree(iter);
@@ -306,7 +308,8 @@ static int memprof_seq_raw_show(struct seq_file *m, void *v)
    if (!iter) 
       return 0;
 
-   //printk("%lu / %lu\n", (long unsigned)iter->i, (long unsigned)iter->max_i);
+   if(iter->i % 200000 == 0 || iter->i == iter->max_i - 1)
+      printu("%lu / %lu (%d%%)\r", (long unsigned)iter->i, (long unsigned)iter->max_i - 1, (int)(100 * iter->i / (iter->max_i - 1)));
 
    if(iter->i == 1) {
       int r, j;
@@ -329,13 +332,13 @@ static int memprof_seq_raw_show(struct seq_file *m, void *v)
       }
       r = seq_write(m, &i, sizeof(i));
       if(r)
-         printk("Error writing second header\n");
+         printu("Error writing second header\n");
       r = seq_write(m, i.node_begin, sizeof(*i.node_begin)*i.max_nodes);
       if(r)
-         printk("Error writing second header\n");
+         printu("Error writing second header\n");
       r = seq_write(m, i.node_end, sizeof(*i.node_end)*i.max_nodes);
       if(r)
-         printk("Error writing second header\n");
+         printu("Error writing second header\n");
       kfree(i.node_begin);
       kfree(i.node_end);
    }
@@ -401,7 +404,7 @@ static void *memprof_seq_start(struct seq_file *p, loff_t *pos) {
             printk("No buffer allocated on CPU %d?\n", cpu);
       }
       iter->max_i = count;
-      printk("Preparing to dump %lu samples!\n", count);
+      printu("Preparing to dump %lu samples!\n", count);
    }
 
    if(iter && iter_step(iter, 1)) 

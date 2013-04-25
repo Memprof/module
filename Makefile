@@ -1,5 +1,5 @@
 obj-m += memprof.o
-memprof-objs := ibs/nmi_int.o mod-memprof.o perf.o proc.o hijack.o
+memprof-objs := ibs/nmi_int.o mod-memprof.o perf.o proc.o hijack.o console.o
 KDIR := /lib/modules/$(shell uname -r)/build
 PWD := $(shell pwd)
 
