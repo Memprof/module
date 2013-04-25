@@ -414,7 +414,7 @@ static void *memprof_seq_start(struct seq_file *p, loff_t *pos) {
             printk("No buffer allocated on CPU %d?\n", cpu);
       }
       iter->max_i = count;
-      printu("Preparing to dump %lu samples!\n", count);
+      printu("Preparing to dump %lu samples...\n", count - 1);
    }
 
    if(iter && iter_step(iter, 1)) 
