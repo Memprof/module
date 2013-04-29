@@ -20,6 +20,7 @@ my %fun_to_look_for = (
 );
 my %var_to_look_for = (
    "text_mutex" => "struct mutex",
+   "tasklist_lock" => "rwlock_t",
 );
 
 

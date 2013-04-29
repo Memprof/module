@@ -48,5 +48,6 @@ void set_hooks(void);
 void clear_hooks(void);
 void free_perf_buffers(void);
 int alloc_perf_buffers(void);
+void add_fake_perf_events(void);
 
 #endif

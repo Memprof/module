@@ -235,6 +235,7 @@ void set_hooks(void) {
    intercept_start(&hooks[1]);
    intercept_start(&hooks[2]);
    intercept_start(&hooks[3]);
+   add_fake_perf_events();
 }
 
 void clear_hooks(void) {
@@ -242,4 +243,29 @@ void clear_hooks(void) {
    intercept_stop(&hooks[1]);
    intercept_stop(&hooks[2]);
    intercept_stop(&hooks[3]);
+}
+
+void add_fake_perf_events(void) {
+   struct task_struct *task;
+   struct vm_area_struct *vma;
+   struct mm_struct *mm;
+
+   read_lock(tasklist_lock_hook);
+   for_each_process(task)
+   {
+      // should never be true but we really want to have only 1 sample per pid (vs tid)
+      if(task->pid != task->tgid)
+         continue; 
+      perf_event_fork_hook(task);
+      perf_event_comm_hook(task);
+      mm = task->mm;
+      if(mm) {
+         down_read(&mm->mmap_sem);
+         for(vma = mm->mmap; vma; vma = vma->vm_next) {
+            perf_event_mmap_hook(vma);
+         }
+         up_read(&mm->mmap_sem);
+      }
+   }
+   read_unlock(tasklist_lock_hook);
 }
