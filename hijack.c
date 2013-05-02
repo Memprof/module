@@ -1,4 +1,4 @@
-/*                                                                                                                                                                           
+/*
 Copyright (C) 2013  
 Baptiste Lepers <baptiste.lepers@gmail.com>
 
