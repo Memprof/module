@@ -31,8 +31,12 @@ Usage
 =====
 
 ```bash
-make 
+../scripts/profile_app.sh <app>
+
+or 
+
 sudo insmod ./memprof.ko 
+rm /tmp/data.*
 echo b > /proc/memprof_cntl 
 LD_PRELOAD=../library/ldlib.so <app> 
 echo e > /proc/memprof_cntl 
