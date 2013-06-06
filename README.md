@@ -31,6 +31,7 @@ WARNING: this module has only been tested on kernels 3.6 to 3.8.
 
 Usage
 =====
+(To get the libraries, the parser and the scripts referenced in the following code, see https://github.com/Memprof.)
 
 ```bash
 ../scripts/profile_app.sh <app>
