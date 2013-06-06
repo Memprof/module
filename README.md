@@ -1,9 +1,11 @@
 Memprof Kernel Module
 =====================
-
 The Memprof Kernel Module collects IBS samples and sets up hooks in the perf event subsystem.
 
+WARNING
+=======
 
+This module only works on AMD processors. Intel processors are not yet supported by Memprof.
 
 How to compile
 ==============
@@ -52,3 +54,6 @@ Notes
 To set sampling frequency change the mod-memprof.c code:
 int max_cnt_op = your-value;
 
+Reference
+=========
+Memprof is described in the following paper "MemProf: A Memory Proﬁler for NUMA Multicore Systems".
