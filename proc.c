@@ -82,12 +82,19 @@ struct memprof_perf_iter {
 };
 
 static int memprof_perf_count(int step, int cpu) {
+   struct mmap_buffer *m;
+   struct comm_buffer *c;
+   struct task_buffer *t;
+
    if(step == 0) {
-      return per_cpu(mmap_buffers, cpu)->count;
+      m = per_cpu(mmap_buffers, cpu);
+      return m?m->count:0;
    } else if(step == 1) {
-      return per_cpu(comm_buffers, cpu)->count;
+      c = per_cpu(comm_buffers, cpu);
+      return c?c->count:0;
    } else if(step == 2) {
-      return per_cpu(task_buffers, cpu)->count;
+      t = per_cpu(task_buffers, cpu);
+      return t?t->count:0;
    } else {
       return 0;
    }
