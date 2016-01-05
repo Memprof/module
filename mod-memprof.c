@@ -47,7 +47,7 @@ Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 #include "mod-memprof.h"
 #include "perf.h"
 
-int max_cnt_op = 0xFFF0;               // sampling rate
+int max_cnt_op = 0x8FFF0;               // sampling period
 int ibs_filter = IBS_INCLUDE_L3 
                | IBS_INCLUDE_REMOTE_CACHE 
                | IBS_INCLUDE_DRAM;
